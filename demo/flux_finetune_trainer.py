@@ -57,15 +57,11 @@ from torchgeo.trainers import BaseTask
 
 # In[2]:
 
-
 from terratorch.models import EncoderDecoderFactory
 from terratorch.datasets import HLSBands
 from terratorch.tasks import PixelwiseRegressionTask
 from terratorch.models.pixel_wise_model import freeze_module
 
-from lytools import *
-
-T = Tools()
 # exit()
 # In[3]:
 
@@ -137,7 +133,7 @@ class prithvi_terratorch(nn.Module):
 # ### Reading model configs from YAML file.
 
 # In[6]:
-
+# print(os.getcwd())
 with open('fluxconfig_trainer_custom.yaml', 'r') as file:
     config = yaml.safe_load(file)
 # exit()
@@ -238,7 +234,7 @@ if not os.path.isfile(model_path):
     hf_hub_download(
         repo_id="ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL",
         filename=model_path,
-        local_dir=".",
+        local_dir="..",
     )
 # exit()
 
@@ -279,7 +275,7 @@ model_comb = RegressionModel_flux(prithvi_model)
 
 criterion = nn.MSELoss()
 optimizer = optim.AdamW(model_comb.parameters(), lr=learning_rate, weight_decay=0.05)
-scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=5, verbose=True)
+scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.9, patience=5)
 
 # ### The task object, used to manage the training and inference processes.
 
