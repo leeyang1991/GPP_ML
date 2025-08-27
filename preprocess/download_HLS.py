@@ -1,5 +1,4 @@
 # coding=utf-8
-
 import urllib3
 from __init__ import *
 import ee
@@ -11,7 +10,8 @@ from geopy import Point
 from geopy.distance import distance as Distance
 from shapely.geometry import Polygon
 
-this_script_root = join(data_root,'HLS')
+# this_script_root = join(data_root,'HLS')
+this_script_root = '/Users/liyang/fsdownload/'
 
 class Expand_points_to_rectangle:
 
@@ -118,7 +118,7 @@ class Download_from_GEE:
         self.collection = 'NASA/HLS/HLSL30/v002'
         # ee.Initialize(project='groovy-bay-461503-r6')
         # ee.Authenticate()
-        ee.Initialize(project='lyfq-263413')
+        # ee.Initialize(project='lyfq-263413')
         # ee.Initialize()
 
         # ee.Authenticate()
@@ -126,21 +126,24 @@ class Download_from_GEE:
         # exit()
 
     def run(self):
-        year_list = list(range(2013,2025))
+        # year_list = list(range(2013,2025))
         # self.download_images(2020)
-        # MULTIPROCESS(self.download_images,year_list).run(process=10,process_or_thread='t')
-        for year in year_list:
-            self.download_images(year)
+        # for year in year_list:
+        #     self.download_images(year)
         # self.check()
+        # self.check_fmask()
         # self.unzip()
-        # self.reproj()
-        # self.clip()
-        # self.statistic()
+        # self.unzip_fmask()
+        # self.resize_to_50_x_50()
+        # self.resize_to_50_x_50_fmask()
+        # self.quality_control()
+        self.merge_bands()
         pass
 
 
     def download_images(self,year=1982):
-        outdir = join(self.this_class_arr,str(year))
+        outdir = join(self.this_class_arr,'GEE_download_fmask',str(year))
+        # outdir = join(self.this_class_arr,'GEE_download',str(year))
         T.mk_dir(outdir,force=True)
         startDate = f'{year}-01-01'
         endDate = f'{year+1}-01-01'
@@ -155,7 +158,7 @@ class Download_from_GEE:
             param = (site_list,i,outdir,geo,startDate,endDate)
             param_list.append(param)
             # self.kernel_download_from_gee(param)
-        MULTIPROCESS(self.kernel_download_from_gee,param_list).run(process=10,process_or_thread='t')
+        MULTIPROCESS(self.kernel_download_from_gee,param_list).run(process=20,process_or_thread='t',desc=f'download_{year}')
 
     def kernel_download_from_gee(self,param):
         site_list,i,outdir,geo,startDate,endDate = param
@@ -191,7 +194,8 @@ class Download_from_GEE:
             # l8_i = ee.Image(dict_i['LANDSAT/LC08/C02/T1_L2/LC08_145037_20200712'])
             Image = ee.Image(dict_i['id'])
             # Image_product = Image.select('total_precipitation')
-            Image_product = Image.select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', ])
+            # Image_product = Image.select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', ])
+            Image_product = Image.select(['Fmask', ])
             # print(Image_product);exit()
             # region = [-111, 32.2, -110, 32.6]# left, bottom, right,
             # region = [-180, -90, 180, 90]  # left, bottom, right,
@@ -222,101 +226,342 @@ class Download_from_GEE:
         with open(outf, 'wb') as f:
             f.write(body)
 
+    def check_fmask(self):
+        fdir = join(self.this_class_arr,'GEE_download_fmask')
+        for year in T.listdir(fdir):
+            for site in tqdm(T.listdir(join(fdir,year)),desc=year):
+                for f in T.listdir(join(fdir,year,site)):
+                    fpath = join(fdir,year,site,f)
+                    try:
+                        zipfile.ZipFile(fpath, 'r')
+                    except:
+                        os.remove(fpath)
+                        print(fpath)
+                        continue
+                    pass
+        pass
+
     def unzip(self):
-        fdir = join(self.this_class_arr,self.product)
-        outdir = join(self.this_class_arr,'unzip',self.product)
+        fdir = join(self.this_class_arr,'GEE_download')
+        outdir = join(self.this_class_arr,'unzip')
         T.mk_dir(outdir,force=True)
         for folder in T.listdir(fdir):
             print(folder)
             fdir_i = join(fdir,folder)
-            # T.open_path_and_file(fdir_i,folder)
-            # exit()
             outdir_i = join(outdir,folder)
-            T.unzip(fdir_i,outdir_i)
+            T.mkdir(outdir_i)
+            for site in T.listdir(join(fdir_i)):
+                fdir_ii = join(fdir_i,site)
+                outdir_ii = join(outdir_i,site)
+                T.mkdir(outdir_ii)
+                T.unzip(fdir_ii,outdir_ii)
+            # exit()
+        pass
+
+    def unzip_fmask(self):
+        fdir = join(self.this_class_arr,'GEE_download_fmask')
+        outdir = join(self.this_class_arr,'unzip_fmask')
+        T.mk_dir(outdir,force=True)
+        for folder in T.listdir(fdir):
+            print(folder)
+            fdir_i = join(fdir,folder)
+            outdir_i = join(outdir,folder)
+            T.mkdir(outdir_i)
+            for site in T.listdir(join(fdir_i)):
+                fdir_ii = join(fdir_i,site)
+                outdir_ii = join(outdir_i,site)
+                T.mkdir(outdir_ii)
+                T.unzip(fdir_ii,outdir_ii)
+            # exit()
         pass
 
     def check(self):
-        fdir = join(self.this_class_arr, self.product)
-        # outdir = join(self.this_class_arr, 'unzip', self.product)
-        # T.mk_dir(outdir, force=True)
-        for folder in T.listdir(fdir):
-            fdir_i = join(fdir, folder)
-            for f in tqdm(T.listdir(fdir_i),desc=folder):
-                fpath = join(fdir_i, f)
-                try:
-                    zipfile.ZipFile(fpath, 'r')
-                except:
-                    os.remove(fpath)
-                    print(fpath)
-                    continue
-                pass
+        fdir = join(self.this_class_arr,'GEE_download')
+        for year in T.listdir(fdir):
+            for site in tqdm(T.listdir(join(fdir,year)),desc=year):
+                for f in T.listdir(join(fdir,year,site)):
+                    fpath = join(fdir,year,site,f)
+                    try:
+                        zipfile.ZipFile(fpath, 'r')
+                    except:
+                        os.remove(fpath)
+                        print(fpath)
+                        continue
+                    pass
         pass
 
+    def resize_to_50_x_50(self):
+        fdir = join(self.this_class_arr,'unzip')
+        outdir = join(self.this_class_arr,'resize_to_50_x_50')
+        # for year in T.listdir(fdir):
+        # year = '2013'
+        # year = '2014'
+        # year = '2015'
+        # year = '2016'
+        # year = '2017'
+        # year = '2018'
+        # year = '2019'
+        # year = '2020'
+        # year = '2021'
+        # year = '2022'
+        # year = '2023'
+        # year = '2024'
+        for year in range(2013,2025):
+            year = str(year)
+            for site in tqdm(T.listdir(join(fdir,year)),desc=year):
+                for date in T.listdir(join(fdir,year,site)):
+                    outdir_i = join(outdir,year,site,date)
+                    T.mkdir(outdir_i,force=True)
+                    for f in T.listdir(join(fdir,year,site,date)):
+                        if not f.endswith('.tif'):
+                            continue
+                        fpath = join(fdir,year,site,date,f)
+                        outf = join(outdir_i,f)
+                        if isfile(outf):
+                            continue
+                        array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                        array = np.array(array,dtype=np.float32)
+                        # print(array);exit()
+                        array[array<0] = np.nan
+                        r_num = array.shape[0]
+                        c_num = array.shape[1]
+                        if r_num < 50:
+                            raise
+                        if c_num < 50:
+                            raise
+                        array = array[:50,:50]
+                        self.array2raster(outf, originX, originY, pixelWidth, pixelHeight, array,projection_wkt)
+        pass
 
-    def wkt(self):
-        wkt = '''
-        PROJCS["Sinusoidal",
-    GEOGCS["GCS_Undefined",
-        DATUM["Undefined",
-            SPHEROID["User_Defined_Spheroid",6371007.181,0.0]],
-        PRIMEM["Greenwich",0.0],
-        UNIT["Degree",0.0174532925199433]],
-    PROJECTION["Sinusoidal"],
-    PARAMETER["False_Easting",0.0],
-    PARAMETER["False_Northing",0.0],
-    PARAMETER["Central_Meridian",0.0],
-    UNIT["Meter",1.0]]'''
-        return wkt
+    def resize_to_50_x_50_fmask(self):
+        fdir = join(self.this_class_arr,'unzip_fmask')
+        outdir = join(self.this_class_arr,'resize_to_50_x_50_fmask')
+        # for year in T.listdir(fdir):
+        # year = '2013'
+        # year = '2014'
+        # year = '2015'
+        # year = '2016'
+        # year = '2017'
+        # year = '2018'
+        # year = '2019'
+        # year = '2020'
+        # year = '2021'
+        # year = '2022'
+        # year = '2023'
+        # year = '2024'
+        for year in range(2013,2025):
+            year = str(year)
+            for site in tqdm(T.listdir(join(fdir,year)),desc=year):
+                for date in T.listdir(join(fdir,year,site)):
+                    outdir_i = join(outdir,year,site,date)
+                    T.mkdir(outdir_i,force=True)
+                    for f in T.listdir(join(fdir,year,site,date)):
+                        if not f.endswith('.tif'):
+                            continue
+                        fpath = join(fdir,year,site,date,f)
+                        outf = join(outdir_i,f)
+                        if isfile(outf):
+                            continue
+                        array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                        array = np.array(array,dtype=np.float32)
+                        # print(array);exit()
+                        array[array<0] = np.nan
+                        r_num = array.shape[0]
+                        c_num = array.shape[1]
+                        if r_num < 50:
+                            raise
+                        if c_num < 50:
+                            raise
+                        array = array[:50,:50]
+                        self.array2raster(outf, originX, originY, pixelWidth, pixelHeight, array,projection_wkt)
+        pass
 
-    def reproj(self):
-        fdir = join(self.this_class_arr,'unzip',self.product)
-        outdir = join(self.this_class_arr,'reproj',self.product)
-        T.mk_dir(outdir,force=True)
-        for year in tqdm(T.listdir(fdir)):
-            for date in T.listdir(join(fdir,year)):
-                for f in T.listdir(join(fdir,year,date)):
-                    fpath = join(fdir,year,date,f)
-                    date_str = f.split('.')[0]
-                    y,m,d = date_str.split('_')
-                    # print(fpath);exit()
-                    outpath = join(outdir,f'{y}{m}{d}.tif')
-                    # print(outpath)
-                    SRS = DIC_and_TIF().gen_srs_from_wkt(self.wkt())
-                    wkg_wgs84 = DIC_and_TIF().wkt_84()
-                    ToRaster().resample_reproj(fpath,outpath,.5,srcSRS=SRS, dstSRS=wkg_wgs84)
-                    # print(outpath)
+    def quality_control(self):
+        '''
+        see:https://lpdaac.usgs.gov/documents/1698/HLS_User_Guide_V2.pdf#page=17.08
+        fmask value:
+        clean pixel values for No water/snow_ice/cloud/cloud_shadow/Adjacent_to_cloud:
+        [0,64,128,192]
+        bit num|mask name        |bit value|mask description
+        7-6    |aerosol level    |11       |High aerosol
+        7-6    |aerosol level    |10       |Moderate aerosol
+        7-6    |aerosol level    |01       |Low aerosol
+        7-6    |aerosol level    |00       |Climatology aerosol
+        5      |Water            |1        |Climatology aerosol
+        5      |Water            |0        |Climatology aerosol
+        4      |Snow/ice         |1        |Yes
+        4      |Snow/ice         |0        |No
+        3      |Cloud shadow     |1        |Yes
+        3      |Cloud shadow     |0        |No
+        2      |Adjacent to cloud|1        |Yes
+        2      |Adjacent to cloud|0        |No
+        1      |Cloud            |1        |Yes
+        1      |Cloud            |0        |No
+        0      |Cirrus           |NA       |NA
+        '''
+        data_dir = join(self.this_class_arr,'resize_to_50_x_50')
+        qc_dir = join(self.this_class_arr,'resize_to_50_x_50_fmask')
+        outdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
+        arr_init = np.ones((50,50),dtype=np.uint8)
+        arr0 = arr_init * 0
+        arr64 = arr_init * 64
+        arr128 = arr_init * 128
+        arr192 = arr_init * 192
+
+        # year = '2013'
+        # year = '2014'
+        # year = '2015'
+        # year = '2016'
+        # year = '2017'
+        # year = '2018'
+        # year = '2019'
+        # year = '2020'
+        # year = '2021'
+        # year = '2022'
+        # year = '2023'
+        # year = '2024'
+
+        for year in T.listdir(qc_dir):
+            for site in tqdm(T.listdir(join(qc_dir,year)),desc=year):
+                for date in T.listdir(join(qc_dir,year,site)):
+                    outdir_i = join(outdir,year,site,date)
+                    T.mkdir(outdir_i,force=True)
+                    fpath_qc = join(qc_dir,year,site,date,T.listdir(join(qc_dir,year,site,date))[0])
+                    arr_qc = self.raster2array(fpath_qc)[0]
+                    arr_qc = np.array(arr_qc,dtype=np.uint8)
+                    arr_filter0 = arr_qc==arr0
+                    arr_filter64 = arr_qc==arr64
+                    arr_filter128 = arr_qc==arr128
+                    arr_filter192 = arr_qc==arr192
+                    arr_qc_filter = arr_filter0 | arr_filter64 | arr_filter128 | arr_filter192
+                    # print(arr_qc_filter)
+                    # plt.imshow(arr_qc_filter)
+                    # plt.title('fmask binary')
+                    # plt.figure()
+                    # plt.imshow(arr_qc)
+                    # plt.title('fmask original')
+                    if not isdir(join(data_dir,year,site,date)):
+                        continue
+                    for f in T.listdir(join(data_dir,year,site,date)):
+                        if not f.endswith('.tif'):
+                            continue
+                        outf = join(outdir_i, f)
+                        if isfile(outf):
+                            continue
+                        fpath = join(data_dir,year,site,date,f)
+                        array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                        array[~arr_qc_filter] = np.nan
+
+                        self.array2raster(outf, originX, originY, pixelWidth, pixelHeight, array,projection_wkt)
+                        # plt.figure()
+                        # plt.imshow(array)
+                        # plt.colorbar()
+                    # plt.show()
                     # exit()
 
-    def clip(self):
-        fdir = join(self.this_class_arr,'reproj',self.product)
-        outdir = join(self.this_class_arr,'clip',self.product)
-        #/mnt/sdb2/yang/Global_Resilience/MODIS_download/NDVI_250m_bighorn/arr/bighorn_shp/bighorn_shp
-        shp = join(self.this_class_arr,'bighorn_shp','bighorn_shp')
-        T.mkdir(outdir,force=True)
-        for f in tqdm(T.listdir(fdir)):
-            if not f.endswith('.tif'):
-                continue
-            fpath = join(fdir,f)
-            outpath = join(outdir,f)
+        pass
 
-            ToRaster().clip_array(fpath,outpath,shp)
-            # T.open_path_and_file(outdir)
-            # exit()
+    def merge_bands(self):
+        fdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
+        outdir = join(self.this_class_arr,'merge_bands')
+        for year in T.listdir(fdir):
+            for site in tqdm(T.listdir(join(fdir,year)),desc=year):
+                outdir_i = join(outdir, year, site)
+                T.mkdir(outdir_i, force=True)
+                for date in T.listdir(join(fdir,year,site)):
+                    outf = join(outdir_i,date + '.tif')
+                    tif_list = []
+                    for f in T.listdir(join(fdir,year,site,date)):
+                        if not f.endswith('.tif'):
+                            continue
+                        fpath = join(fdir,year,site,date,f)
+                        # print(fpath)
+                        array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                        array = np.array(array,dtype=np.float32)
+                        array_valid = array[~np.isnan(array)]
+                        valid_ratio = len(array_valid)/array.size
+                        if valid_ratio < 0.5:
+                            tif_list = []
+                            break
+                        tif_list.append(fpath)
+                    if len(tif_list) == 0:
+                        continue
+                    band_name_list = []
+                    for f in tif_list:
+                        band_name = f.split('.')[-2]
+                        band_name_list.append(band_name)
+                    self.gdal_merge_bands(tif_list,band_name_list,outf)
+                # exit()
 
         pass
 
-    def statistic(self):
-        fdir = join(self.this_class_arr,'reproj',self.product)
-        statistic_dict = {}
-        for f in T.listdir(fdir):
-            date = f.split('.')[0]
-            year,mon,day = date[:4],date[4:6],date[6:]
-            if not year in statistic_dict:
-                statistic_dict[year] = []
-            statistic_dict[year].append(f)
-        for year in statistic_dict:
-            flist = statistic_dict[year]
-            print(year,len(flist))
+    def raster2array(self, rasterfn):
+        '''
+        create array from raster
+        Agrs:
+            rasterfn: tiff file path
+        Returns:
+            array: tiff data, an 2D array
+        '''
+        raster = gdal.Open(rasterfn)
+        projection_wkt = raster.GetProjection()
+        geotransform = raster.GetGeoTransform()
+        originX = geotransform[0]
+        originY = geotransform[3]
+        pixelWidth = geotransform[1]
+        pixelHeight = geotransform[5]
+        band = raster.GetRasterBand(1)
+        array = band.ReadAsArray()
+        array = np.asarray(array)
+        del raster
+        return array, originX, originY, pixelWidth, pixelHeight,projection_wkt
+
+    def array2raster(self, newRasterfn, longitude_start, latitude_start, pixelWidth, pixelHeight, array, projection_wkt,ndv=-999999):
+        cols = array.shape[1]
+        rows = array.shape[0]
+        originX = longitude_start
+        originY = latitude_start
+        # open geotiff
+        driver = gdal.GetDriverByName('GTiff')
+        if os.path.exists(newRasterfn):
+            os.remove(newRasterfn)
+        outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float32)
+        # outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_UInt16)
+        # ndv = 255
+        # Add Color Table
+        # outRaster.GetRasterBand(1).SetRasterColorTable(ct)
+        outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+        # Write Date to geotiff
+        outband = outRaster.GetRasterBand(1)
+
+        outband.SetNoDataValue(ndv)
+        outband.WriteArray(array)
+        outRasterSRS = osr.SpatialReference()
+        # outRasterSRS.ImportFromEPSG(4326)
+        outRaster.SetProjection(projection_wkt)
+        # Close Geotiff
+        outband.FlushCache()
+        del outRaster
+
+    def gdal_merge_bands(self,tif_list,bands_name_list,outf):
+        src0 = gdal.Open(tif_list[0])
+        driver = gdal.GetDriverByName('GTiff')
+        out_ds = driver.Create(outf,
+                               src0.RasterXSize,
+                               src0.RasterYSize,
+                               len(tif_list),
+                               gdal.GDT_Float32)
+
+        out_ds.SetGeoTransform(src0.GetGeoTransform())
+        out_ds.SetProjection(src0.GetProjection())
+        for idx, tif in enumerate(tif_list, start=1):
+            src = gdal.Open(tif)
+            band = src.GetRasterBand(1).ReadAsArray()
+            out_ds.GetRasterBand(idx).WriteArray(band)
+            out_ds.GetRasterBand(idx).SetDescription(bands_name_list[idx - 1])
+
+        out_ds.FlushCache()
+        out_ds = None
 
 
 def main():
