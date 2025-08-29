@@ -9,8 +9,8 @@ warnings.filterwarnings("ignore",category=DeprecationWarning)
 warnings.filterwarnings("ignore",category=UserWarning)
 warnings.filterwarnings("ignore",category=FutureWarning)
 import sys
-version = sys.version_info.major
-assert version == 3, 'Python Version Error'
+python_version = sys.version_info.major
+assert python_version == 3, 'Python Version Error'
 
 from lytools import *
 from matplotlib import pyplot as plt

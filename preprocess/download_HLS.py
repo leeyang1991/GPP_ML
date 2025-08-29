@@ -1,17 +1,18 @@
 # coding=utf-8
+import shutil
+
+import matplotlib.pyplot as plt
 import urllib3
 from __init__ import *
 import ee
 import math
-import pprint
-# coding=utf-8
 import geopandas as gpd
 from geopy import Point
 from geopy.distance import distance as Distance
 from shapely.geometry import Polygon
 
-# this_script_root = join(data_root,'HLS')
-this_script_root = '/Users/liyang/fsdownload/'
+this_script_root = join(data_root,'HLS')
+# this_script_root = '/Volumes/NVME4T/GPP_ML/data/HLS/'
 
 class Expand_points_to_rectangle:
 
@@ -111,22 +112,28 @@ class Download_from_GEE:
     def __init__(self):
         '''
         band: B2, ... , B7
+        https://developers.google.com/earth-engine/datasets/catalog/NASA_HLS_HLSS30_v002
+        https://developers.google.com/earth-engine/datasets/catalog/NASA_HLS_HLSL30_v002
         '''
+        # --------------------------------------------------------------------------------
+        # self.collection = 'NASA/HLS/HLSL30/v002' # derived from LandSAT
+        # --------------------------------------------------------------------------------
+        self.collection = 'NASA/HLS/HLSS30/v002' # derived from Sentinel
+        # --------------------------------------------------------------------------------
+        self.satellite = self.collection.split('/')[2]
+        # print(satellite);exit()
         self.this_class_arr, self.this_class_tif, self.this_class_png = T.mk_class_dir(
-            'Download_from_GEE',
+            f'Download_from_GEE/{self.satellite}',
             this_script_root, mode=2)
-        self.collection = 'NASA/HLS/HLSL30/v002'
-        # ee.Initialize(project='groovy-bay-461503-r6')
-        # ee.Authenticate()
-        # ee.Initialize(project='lyfq-263413')
-        # ee.Initialize()
 
         # ee.Authenticate()
+        # ee.Initialize(project='lyfq-263413')
+
         # pause()
         # exit()
 
     def run(self):
-        # year_list = list(range(2013,2025))
+        # year_list = list(range(2015,2025))
         # self.download_images(2020)
         # for year in year_list:
         #     self.download_images(year)
@@ -137,13 +144,16 @@ class Download_from_GEE:
         # self.resize_to_50_x_50()
         # self.resize_to_50_x_50_fmask()
         # self.quality_control()
-        self.merge_bands()
+        # self.quality_control_for_HLSS30()
+        # self.merge_bands()
+        # self.check_merge_band_data()
+        # self.pick_images_based_on_flux_site_and_rename()
+        self.check_pick_images_based_on_flux_site_and_rename()
         pass
 
 
     def download_images(self,year=1982):
-        outdir = join(self.this_class_arr,'GEE_download_fmask',str(year))
-        # outdir = join(self.this_class_arr,'GEE_download',str(year))
+        outdir = join(self.this_class_arr,'GEE_download',str(year))
         T.mk_dir(outdir,force=True)
         startDate = f'{year}-01-01'
         endDate = f'{year+1}-01-01'
@@ -194,8 +204,7 @@ class Download_from_GEE:
             # l8_i = ee.Image(dict_i['LANDSAT/LC08/C02/T1_L2/LC08_145037_20200712'])
             Image = ee.Image(dict_i['id'])
             # Image_product = Image.select('total_precipitation')
-            # Image_product = Image.select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', ])
-            Image_product = Image.select(['Fmask', ])
+            Image_product = Image.select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'Fmask'])
             # print(Image_product);exit()
             # region = [-111, 32.2, -110, 32.6]# left, bottom, right,
             # region = [-180, -90, 180, 90]  # left, bottom, right,
@@ -284,7 +293,7 @@ class Download_from_GEE:
                     try:
                         zipfile.ZipFile(fpath, 'r')
                     except:
-                        os.remove(fpath)
+                        # os.remove(fpath)
                         print(fpath)
                         continue
                     pass
@@ -306,7 +315,7 @@ class Download_from_GEE:
         # year = '2022'
         # year = '2023'
         # year = '2024'
-        for year in range(2013,2025):
+        for year in range(2015,2025):
             year = str(year)
             for site in tqdm(T.listdir(join(fdir,year)),desc=year):
                 for date in T.listdir(join(fdir,year,site)):
@@ -322,7 +331,7 @@ class Download_from_GEE:
                         array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
                         array = np.array(array,dtype=np.float32)
                         # print(array);exit()
-                        array[array<0] = np.nan
+                        array[array<=0] = np.nan
                         r_num = array.shape[0]
                         c_num = array.shape[1]
                         if r_num < 50:
@@ -461,6 +470,86 @@ class Download_from_GEE:
 
         pass
 
+    def quality_control_for_HLSS30(self):
+        '''
+        see:https://lpdaac.usgs.gov/documents/1698/HLS_User_Guide_V2.pdf#page=17.08
+        fmask value:
+        clean pixel values for No water/snow_ice/cloud/cloud_shadow/Adjacent_to_cloud:
+        [0,64,128,192]
+        bit num|mask name        |bit value|mask description
+        7-6    |aerosol level    |11       |High aerosol
+        7-6    |aerosol level    |10       |Moderate aerosol
+        7-6    |aerosol level    |01       |Low aerosol
+        7-6    |aerosol level    |00       |Climatology aerosol
+        5      |Water            |1        |Climatology aerosol
+        5      |Water            |0        |Climatology aerosol
+        4      |Snow/ice         |1        |Yes
+        4      |Snow/ice         |0        |No
+        3      |Cloud shadow     |1        |Yes
+        3      |Cloud shadow     |0        |No
+        2      |Adjacent to cloud|1        |Yes
+        2      |Adjacent to cloud|0        |No
+        1      |Cloud            |1        |Yes
+        1      |Cloud            |0        |No
+        0      |Cirrus           |NA       |NA
+        '''
+        data_dir = join(self.this_class_arr,'resize_to_50_x_50')
+        outdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
+        arr_init = np.ones((50,50),dtype=np.uint8)
+        arr0 = arr_init * 0
+        arr64 = arr_init * 64
+        arr128 = arr_init * 128
+        arr192 = arr_init * 192
+
+        # year = '2013'
+        # year = '2014'
+        # year = '2015'
+        # year = '2016'
+        # year = '2017'
+        # year = '2018'
+        # year = '2019'
+        # year = '2020'
+        # year = '2021'
+        # year = '2022'
+        # year = '2023'
+        year = '2024'
+
+        # for year in T.listdir(data_dir):
+        for site in tqdm(T.listdir(join(data_dir,year)),desc=year):
+            for date in T.listdir(join(data_dir,year,site)):
+                outdir_i = join(outdir,year,site,date)
+                T.mkdir(outdir_i,force=True)
+                fpath_qc = join(data_dir,year,site,date,date+'.Fmask.tif')
+                arr_qc = self.raster2array(fpath_qc)[0]
+                arr_qc = np.array(arr_qc,dtype=np.uint8)
+                arr_filter0 = arr_qc==arr0
+                arr_filter64 = arr_qc==arr64
+                arr_filter128 = arr_qc==arr128
+                arr_filter192 = arr_qc==arr192
+                arr_qc_filter = arr_filter0 | arr_filter64 | arr_filter128 | arr_filter192
+                if not isdir(join(data_dir,year,site,date)):
+                    continue
+                for f in T.listdir(join(data_dir,year,site,date)):
+                    if not f.endswith('.tif'):
+                        continue
+                    outf = join(outdir_i, f)
+                    if isfile(outf):
+                        continue
+                    if f.endswith('.Fmask.tif'):
+                        continue
+                    fpath = join(data_dir,year,site,date,f)
+                    array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                    array[~arr_qc_filter] = np.nan
+
+                    self.array2raster(outf, originX, originY, pixelWidth, pixelHeight, array,projection_wkt)
+                    # plt.figure()
+                    # plt.imshow(array)
+                    # plt.colorbar()
+                # plt.show()
+                # exit()
+
+        pass
+
     def merge_bands(self):
         fdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
         outdir = join(self.this_class_arr,'merge_bands')
@@ -492,6 +581,127 @@ class Download_from_GEE:
                         band_name_list.append(band_name)
                     self.gdal_merge_bands(tif_list,band_name_list,outf)
                 # exit()
+
+    def check_merge_band_data(self):
+        fdir = join(self.this_class_arr,'merge_bands')
+        outdir = join(self.this_class_png,'merge_bands')
+        T.mkdir(outdir,force=True)
+        site_list = []
+        for year in T.listdir(fdir):
+            for site in T.listdir(join(fdir,year)):
+                site_list.append(site)
+            break
+        site_date_obj_dict = {}
+        for year in tqdm(T.listdir(fdir)):
+            for site in site_list:
+                if not site in site_date_obj_dict:
+                    site_date_obj_dict[site] = []
+                for f in T.listdir(join(fdir,year,site)):
+                    date_str = f.split('.')[0].split('_')[-1]
+                    date_obj = datetime.datetime.strptime(date_str, "%Y%m%dT%H%M%S")
+                    site_date_obj_dict[site].append(date_obj)
+        plt.figure(figsize=(20,70),dpi=300)
+        total = 0
+        for site in site_list:
+            date_obj_list = site_date_obj_dict[site]
+            date_obj_list.sort()
+            plt.scatter(date_obj_list,[site+':'+str(len(date_obj_list))]*len(date_obj_list),c='k',s=5,marker='_')
+            total += len(date_obj_list)
+        plt.grid(axis='x')
+        plt.title('total: ' + str(total))
+        plt.tight_layout()
+        # plt.show()
+        outf = join(outdir,'merge_bands.pdf')
+        plt.savefig(outf)
+        plt.close()
+
+        pass
+
+    def pick_images_based_on_flux_site_and_rename(self):
+        image_dir = join(self.this_class_arr,'merge_bands')
+        import flux_sites
+        flux_dff = join(flux_sites.Fluxdata().data_dir,'dataframe/fluxdata_DD.df')
+        flux_df = T.load_df(flux_dff)
+        outdir = join(self.this_class_tif,'chips')
+        T.mkdir(outdir)
+        date_list = flux_df.columns.tolist()
+        date_list.remove('SITE_ID')
+        date_list.sort()
+        date_obj_list = []
+        for date_str in date_list:
+            date_str = str(date_str)
+            year,mon,day = int(date_str[:4]),int(date_str[4:6]),int(date_str[6:8])
+            date_obj = datetime.datetime(year,mon,day)
+            date_obj_list.append(date_obj)
+        for i,row in tqdm(flux_df.iterrows(),total=len(flux_df)):
+            site_ID = row['SITE_ID']
+            outdir_i = join(outdir,site_ID)
+            T.mkdir(outdir_i)
+            valid_date_for_flux = []
+            for i,date in enumerate(date_list):
+                val = row[date]
+                if np.isnan(val):
+                    continue
+                valid_date_for_flux.append(date_obj_list[i])
+            valid_date_for_HLS = []
+            HLS_fpath_date_dict = {}
+            for folder in T.listdir(image_dir):
+                fdir_i = join(image_dir,folder,site_ID)
+                if not isdir(fdir_i):
+                    continue
+                for f in T.listdir(fdir_i):
+                    fpath = join(fdir_i,f)
+                    date_str = f.split('_')[1].split('T')[0]
+                    year,mon,day = int(date_str[:4]),int(date_str[4:6]),int(date_str[6:8])
+                    date_obj = datetime.datetime(year,mon,day)
+                    valid_date_for_HLS.append(date_obj)
+                    HLS_fpath_date_dict[date_obj] = fpath
+            intersect_date = list(set(valid_date_for_HLS) & set(valid_date_for_flux))
+            selected_fpath_list = []
+            for date_obj in intersect_date:
+                selected_fpath_list.append(HLS_fpath_date_dict[date_obj])
+            # old name: T19FFV_20140306T135047.tif
+            # target name: HLS.S30.T31UES.2020111T105031.v2.0.BE-Lcr_merged.50x50pixels.tif
+            # rename:   HLS.L30.T20HPF.20231015T135713.v002.AR-CCg.50x50pixels.tif
+            selected_fpath_rename_list = []
+            satellite = self.satellite.replace('HLS', '')
+            for fpath in selected_fpath_list:
+                f_name = fpath.split('/')[-1].split('.')[0]
+                tile = f_name.split('_')[0]
+                date_str = f_name.split('_')[1]
+                new_name = f'HLS.{satellite}.{tile}.{date_str}.v002.{site_ID}.50x50pixels.tif'
+                outf = join(outdir_i,new_name)
+                shutil.copy(fpath,outf)
+        pass
+
+    def check_pick_images_based_on_flux_site_and_rename(self):
+        import matplotlib.dates as mdates
+        fdir = join(self.this_class_tif,'chips')
+        outdir = join(self.this_class_png,'chips')
+        T.mkdir(outdir,force=True)
+        fig, ax = plt.subplots(figsize=(20,40))
+        total = 0
+        for site in T.listdir(fdir):
+            date_obj_list = []
+            for f in T.listdir(join(fdir,site)):
+                # HLS.L30.T20HPF.20231015T135713.v002.AR-CCg.50x50pixels.tif
+                date_str = f.split('.')[3].split('T')[0]
+                year,mon,day = int(date_str[:4]),int(date_str[4:6]),int(date_str[6:8])
+                date_obj = datetime.datetime(year,mon,day)
+                date_obj_list.append(date_obj)
+            if len(date_obj_list) == 0:
+                continue
+            total += len(date_obj_list)
+            ax.scatter(date_obj_list,[site+':'+str(len(date_obj_list))]*len(date_obj_list),c='k',s=3,marker='_')
+        ax.xaxis.set_major_locator(mdates.YearLocator())
+        plt.title(f'chips_summary: total: {total}')
+        plt.xticks()
+        plt.grid(axis='x')
+        plt.tight_layout()
+        # plt.show()
+        outf = join(outdir,'chips_summary.pdf')
+        plt.savefig(outf)
+        plt.close()
 
         pass
 

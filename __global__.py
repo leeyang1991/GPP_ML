@@ -13,7 +13,8 @@ elif 'Darwin' in os_version:
     # MacBook
     import matplotlib
     print('Platform: MacOS')
-    this_root = '/Volumes/HDD/GPP_ML/'
+    # this_root = '/Volumes/HDD/GPP_ML/'
+    this_root = '/Volumes/NVME4T/GPP_ML/'
     matplotlib.use('TkAgg')
 elif 'PREEMPT_DYNAMIC' in os_version:
     # yangligeo VPS

@@ -1,4 +1,4 @@
-from __global__ import *
+
 from __init__ import *
 
 class Fluxdata_summary:
