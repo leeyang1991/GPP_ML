@@ -33,7 +33,7 @@ class Download_from_GEE:
 
 
     def extract_time_series_from_GEE(self):
-        import download_HLS
+        import HLS
         start_year = 2013
         end_year = 2024
 
