@@ -111,7 +111,7 @@ class Download_from_GEE:
 
     def __init__(self):
         '''
-        band: B2, ... , B7
+        band: B2, ... , B7, fmask
         https://developers.google.com/earth-engine/datasets/catalog/NASA_HLS_HLSS30_v002
         https://developers.google.com/earth-engine/datasets/catalog/NASA_HLS_HLSL30_v002
         '''
@@ -133,10 +133,10 @@ class Download_from_GEE:
         # exit()
 
     def run(self):
-        # year_list = list(range(2015,2025))
+        year_list = list(range(2015,2025))
         # self.download_images(2020)
-        # for year in year_list:
-        #     self.download_images(year)
+        for year in year_list:
+            self.download_images(year)
         # self.check()
         # self.check_fmask()
         # self.unzip()
@@ -148,7 +148,7 @@ class Download_from_GEE:
         # self.merge_bands()
         # self.check_merge_band_data()
         # self.pick_images_based_on_flux_site_and_rename()
-        self.check_pick_images_based_on_flux_site_and_rename()
+        # self.check_pick_images_based_on_flux_site_and_rename()
         pass
 
 

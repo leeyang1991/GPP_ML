@@ -213,8 +213,11 @@ class Fluxdata:
             site_name = folder.split('_')[1]
             TIMESTAMP = df_i['TIMESTAMP'].tolist()
             GPP = df_i['GPP_NT_VUT_REF'].tolist()
+            QC = df_i['NEE_VUT_REF_QC'].tolist()
+            QC = np.array(QC,dtype=float)
             GPP = np.array(GPP,dtype=np.float32)
             GPP[GPP<0] = np.nan
+            GPP[QC<0.6] = np.nan
             dict_i = T.dict_zip(TIMESTAMP, GPP)
             all_dict[site_name] = dict_i
             # break
