@@ -16,7 +16,8 @@ class Gen_Dataframe:
         df = self.__gen_df_init()
         # df = self.add_band_values(df)
         # df = self.add_indices(df)
-        df = self.add_flux_GPP(df)
+        # df = self.add_flux_GPP(df)
+        df = self.add_ERA5(df)
         # T.print_head_n(df)
         T.save_df(df,self.dff)
         T.df_to_excel(df,self.dff)
@@ -178,6 +179,21 @@ class Gen_Dataframe:
             gpp = gpp_df_i[date_int].values[0]
             gpp_list.append(gpp)
         df['GPP'] = gpp_list
+        return df
+
+    def add_ERA5(self,df):
+        era5_variables = ['temperature_2m','temperature_2m_min','temperature_2m_max','total_precipitation_sum']
+        fdir = join(data_root,'ERA5/Download_from_GEE/DAILY_AGGR/arr/GEE_download/2013-2024')
+        df_site_group = T.df_groupby(df,'SITE_ID')
+        for site in tqdm(df_site_group):
+            df_i = df_site_group[site]
+            era5_dff = join(fdir,site +'.df')
+            era5_df = T.load_df(era5_dff)
+            era5_dict = T.df_to_dic(era5_df,'date')
+            for i,row in df_i.iterrows():
+                date = row['date']
+                for var in era5_variables:
+                    df.at[i,var] = era5_dict[date][var]
         return df
 
     def __gen_df_init(self):
