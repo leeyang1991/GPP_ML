@@ -14,8 +14,11 @@
 # ```
 
 # In[1]:
-
-
+from __global__ import *
+from lytools import *
+T = Tools()
+from pprint import pprint
+# exit()
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -55,6 +58,7 @@ from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, Mode
 from lightning.pytorch.loggers import TensorBoardLogger
 from torchgeo.trainers import BaseTask
 
+# exit()
 # In[2]:
 
 from terratorch.models import EncoderDecoderFactory
@@ -105,7 +109,7 @@ def get_r_sq(pred, targ):
 
 # In[5]:
 
-
+# exit()
 class prithvi_terratorch(nn.Module):
 
     def __init__(self, prithvi_weight, model_instance, input_size):
@@ -181,9 +185,11 @@ norm = config["normalization"]
 
 
 # read merra, gpp inputs
-sites_file = '/home/yangli/PycharmProjects/ML_GPP/data/sites/data_train_hls_37sites_v0_1.csv'
+# sites_file = '/home/yangli/PycharmProjects/ML_GPP/data/sites/data_train_hls_37sites_v0_1.csv'
+sites_file = '/Volumes/NVME4T/GPP_ML/demo_data/data/sites/data_train_hls_37sites_v0_1.csv'
 df = pd.read_csv(sites_file)
-# T.print_head_n(df)
+# df = T.load_df(sites_file)
+T.print_head_n(df)
 
 # exit()
 # get train_test splits
@@ -211,16 +217,15 @@ gpp_stds = np.array(gpp_stds)
 
 # In[8]:
 
-
+# exit()
 # create ordered paits of hls, merra input and flux output based on splits
 flux_dataset_train = flux_dataset([chips + '/' + str(ele) for ele in train_chips], means, stds, merra_train,
                                   merra_means, merra_stds, gpp_means, gpp_stds, train_target)
 flux_dataset_test = flux_dataset([chips_test + '/' + str(ele) for ele in test_chips], means, stds, merra_test,
                                  merra_means, merra_stds, gpp_means, gpp_stds, test_target)
-
 datamodule = flux_dataloader(flux_dataset_train, flux_dataset_test, train_batch_size, test_batch_size, config)
 datamodule_ = flux_dataloader(flux_dataset_train, flux_dataset_train, train_batch_size, test_batch_size, config)
-
+# exit()
 # ### Downloading the checkpoint from HuggingFace
 
 # In[9]:
@@ -229,7 +234,8 @@ datamodule_ = flux_dataloader(flux_dataset_train, flux_dataset_train, train_batc
 from huggingface_hub import hf_hub_download, snapshot_download
 # /Volumes/home/PycharmProjects/ML/Prithvi-EO-2.0-main/examples/carbon_flux/Prithvi_EO_V2_300M_TL.pt
 #/Volumes/home/PycharmProjects/ML_GPP/data/model/Prithvi_EO_V2_300M_TL.pt
-model_path = '/home/yangli/PycharmProjects/ML_GPP/data/model/Prithvi_EO_V2_300M_TL.pt'
+# model_path = '/home/yangli/PycharmProjects/ML_GPP/data/model/Prithvi_EO_V2_300M_TL.pt'
+model_path = '/Volumes/NVME4T/GPP_ML/Model/Prithvi_EO_V2_300M_TL.pt'
 if not os.path.isfile(model_path):
     hf_hub_download(
         repo_id="ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL",
@@ -241,7 +247,7 @@ if not os.path.isfile(model_path):
 # ### Creating an instance of our custom model used to estimate the carbon flux problem.
 
 # In[10]:
-
+# exit()
 
 from terratorch.models.backbones.prithvi_mae import PrithviViT
 
@@ -267,7 +273,7 @@ prithvi_model.freeze_encoder()
 
 # Instantiate the regression model
 model_comb = RegressionModel_flux(prithvi_model)
-
+# exit()
 # ### Loss function and optimizer
 
 # In[11]:
@@ -287,14 +293,15 @@ task = PixelwiseRegressionTask(None, None, model=model_comb, loss="mse", optimiz
 # ### Instantiating the trainer object (from Pytorch Lightning).
 
 # In[13]:
-
-accelerator = "cuda"
+# exit()
+# accelerator = "cuda"
+accelerator = "mps"
 checkpoint_callback = ModelCheckpoint(monitor=task.monitor, save_top_k=1, save_last=True)
 num_epochs = n_iteration
 experiment = "carbon_flux"
 default_root_dir = os.path.join("tutorial_experiments", experiment)
 logger = TensorBoardLogger(save_dir=default_root_dir, name=experiment)
-
+# exit()
 trainer = Trainer(
     # precision="16-mixed",
     accelerator=accelerator,
@@ -309,7 +316,7 @@ trainer = Trainer(
     check_val_every_n_epoch=200
 
 )
-
+# exit()
 # ### "Zeroshot" evaluation (no training).
 
 # In[14]:
@@ -417,6 +424,7 @@ plt.ylabel('Predicted GPP', fontsize=14)
 plt.grid(True)
 plt.title('Test set\nR2: ' + str(r2_unnorm))
 plt.show()
+# pause()
 # ### Applying on train set (batches) in eval mode and deriving metrics, plots.
 
 # In[ ]:
