@@ -17,7 +17,8 @@ class Gen_Dataframe:
         # df = self.add_band_values(df)
         # df = self.add_indices(df)
         # df = self.add_flux_GPP(df)
-        df = self.add_ERA5(df)
+        # df = self.add_ERA5(df)
+        df = self.check_chips_exist(df)
         # T.print_head_n(df)
         T.save_df(df,self.dff)
         T.df_to_excel(df,self.dff)
@@ -194,6 +195,16 @@ class Gen_Dataframe:
                 date = row['date']
                 for var in era5_variables:
                     df.at[i,var] = era5_dict[date][var]
+        return df
+
+    def check_chips_exist(self,df):
+        is_file_list = []
+        for i,row in tqdm(df.iterrows(),total=len(df)):
+            tif_path = row['tif_path']
+            tif_path = tif_path.replace('[PROJECT_ROOT]/',this_root)
+            is_file = isfile(tif_path)
+            is_file_list.append(is_file)
+        df['tif_path_exists'] = is_file_list
         return df
 
     def __gen_df_init(self):

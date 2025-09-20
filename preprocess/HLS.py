@@ -1,7 +1,7 @@
 # coding=utf-8
 import shutil
 
-import matplotlib.pyplot as plt
+import numpy as np
 import urllib3
 from __init__ import *
 import ee
@@ -13,7 +13,7 @@ from shapely.geometry import Polygon
 
 this_script_root = join(data_root,'HLS')
 # this_script_root = '/Volumes/NVME4T/GPP_ML/data/HLS/'
-
+# exit()
 class Expand_points_to_rectangle:
 
     def __init__(self):
@@ -133,10 +133,10 @@ class Download_from_GEE:
         # exit()
 
     def run(self):
-        year_list = list(range(2015,2025))
+        # year_list = list(range(2015,2025))
         # self.download_images(2020)
-        for year in year_list:
-            self.download_images(year)
+        # for year in year_list:
+        #     self.download_images(year)
         # self.check()
         # self.check_fmask()
         # self.unzip()
@@ -145,9 +145,10 @@ class Download_from_GEE:
         # self.resize_to_50_x_50_fmask()
         # self.quality_control()
         # self.quality_control_for_HLSS30()
+        # self.fill_nan_values()
         # self.merge_bands()
         # self.check_merge_band_data()
-        # self.pick_images_based_on_flux_site_and_rename()
+        self.pick_images_based_on_flux_site_and_rename()
         # self.check_pick_images_based_on_flux_site_and_rename()
         pass
 
@@ -551,7 +552,7 @@ class Download_from_GEE:
         pass
 
     def merge_bands(self):
-        fdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
+        fdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc_fill_nan')
         outdir = join(self.this_class_arr,'merge_bands')
         for year in T.listdir(fdir):
             for site in tqdm(T.listdir(join(fdir,year)),desc=year):
@@ -610,7 +611,7 @@ class Download_from_GEE:
         plt.grid(axis='x')
         plt.title('total: ' + str(total))
         plt.tight_layout()
-        # plt.show()
+        plt.show()
         outf = join(outdir,'merge_bands.pdf')
         plt.savefig(outf)
         plt.close()
@@ -702,6 +703,41 @@ class Download_from_GEE:
         outf = join(outdir,'chips_summary.pdf')
         plt.savefig(outf)
         plt.close()
+
+        pass
+
+    def fill_nan_values(self):
+        tif_dir = join(self.this_class_arr,'resize_to_50_x_50_after_qc')
+        outdir = join(self.this_class_arr,'resize_to_50_x_50_after_qc_fill_nan')
+        # for year in tqdm(T.listdir(tif_dir)):
+        # year = '2013'
+        # year = '2014'
+        # year = '2015'
+        # year = '2016'
+        # year = '2017'
+        # year = '2018'
+        # year = '2019'
+        # year = '2020'
+        # year = '2021'
+        # year = '2022'
+        # year = '2023'
+        year = '2024'
+        for site in tqdm(T.listdir(join(tif_dir,year)),desc=year):
+            for date in T.listdir(join(tif_dir,year,site)):
+                outdir_i = join(outdir, year, site, date)
+                T.mkdir(outdir_i,force=True)
+                for f in T.listdir(join(tif_dir,year,site,date)):
+                    if not f.endswith('.tif'):
+                        continue
+                    fpath = join(tif_dir,year,site,date,f)
+                    array, originX, originY, pixelWidth, pixelHeight,projection_wkt = self.raster2array(fpath)
+                    array[np.isnan(array)] = 0
+                    outf = join(outdir_i,f)
+                    self.array2raster(outf, originX, originY, pixelWidth, pixelHeight, array, projection_wkt)
+
+
+
+
 
         pass
 
