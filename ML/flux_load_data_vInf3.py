@@ -107,17 +107,17 @@ class flux_dataloader(LightningDataModule):
         pass
 
     def train_dataloader(self):
-        data_loader_flux_train = DataLoader(self.flux_dataset_train, batch_size=self.train_batch_size,
+        data_loader_flux_train = DataLoader(self.flux_dataset_train, batch_size=self.train_batch_size,num_workers=4,
                                             shuffle=True)
         return data_loader_flux_train
 
     def test_dataloader(self):
-        data_loader_flux_test = DataLoader(self.flux_dataset_test, batch_size=self.test_batch_size,
+        data_loader_flux_test = DataLoader(self.flux_dataset_test, batch_size=self.test_batch_size,num_workers=4,
                                            shuffle=True)
         return data_loader_flux_test
 
     def predict_dataloader(self):
-        data_loader_flux_test = DataLoader(self.flux_dataset_test, batch_size=self.test_batch_size,
+        data_loader_flux_test = DataLoader(self.flux_dataset_test, batch_size=self.test_batch_size,num_workers=4,
                                            shuffle=True)
         return data_loader_flux_test
 

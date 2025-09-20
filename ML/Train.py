@@ -1,6 +1,7 @@
 
 from lytools import *
 T = Tools()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from __global__ import *
 from pprint import pprint
 import warnings
@@ -38,7 +39,7 @@ from torcheval.metrics import R2Score
 from sklearn.metrics import r2_score
 
 from lightning.pytorch import Trainer
-from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, RichProgressBar
+from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, RichProgressBar,TQDMProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger
 from torchgeo.trainers import BaseTask
 
@@ -98,7 +99,7 @@ class Do_Train():
         pass
 
     def conf(self):
-        self.device ='mps'
+        self.device =global_device
         self.n_channel = 6
         self.embed_dim = 1024
         self.patch_size = [1,16,16]
@@ -108,7 +109,7 @@ class Do_Train():
         self.head_dropout = 0.2
 
         self.n_frame = 1
-        self.n_iteration = 50
+        self.n_iteration = 100
         self.checkpoint_dir = self.log_dir
         self.metrics_dir = self.log_dir
         self.plots_dir = self.log_dir
@@ -154,12 +155,17 @@ class Do_Train():
             return r2.item()
 
     def train(self):
+        outpng_dir = join(self.this_class_png,'performance')
+        T.mkdir(outpng_dir,force=True)
         climate_variable_list = ['temperature_2m', 'temperature_2m_min', 'temperature_2m_max', 'total_precipitation_sum']
         bands_list = ['B2','B3','B4','B5','B6','B7']
         fpath = join(data_root,'Dataframe/HLS_chips.df')
         df = T.load_df(fpath)
         df = df[df['tif_path_exists']]
         df = df.dropna(how='any')
+        # T.print_head_n(df)
+        # exit()
+
 
         # Test
         test_df = df[df['year'] == self.year_to_test]
@@ -240,7 +246,8 @@ class Do_Train():
             # precision="16-mixed",
             accelerator=self.device,
             callbacks=[
-                RichProgressBar(),
+                # RichProgressBar(),
+                TQDMProgressBar(),
                 checkpoint_callback,
                 LearningRateMonitor(logging_interval="epoch"),
             ],
@@ -285,11 +292,13 @@ class Do_Train():
         plt.ylabel('Predicted GPP', fontsize=14)
         plt.grid(True)
         plt.title('Zeroshot\nR2: ' + str(r2_unnorm))
+        outf1 = join(outpng_dir,f'zeroshot_r2_{self.year_to_test}.png')
+        plt.savefig(outf1,dpi=600)
+        plt.close()
         # plt.show()
         plt.figure()
         print("Starting training")
         # exit()
-        # In[ ]:
 
         trainer.fit(model=task, datamodule=datamodule)
         results = trainer.predict(model=task, datamodule=datamodule, return_predictions=True)
@@ -337,6 +346,9 @@ class Do_Train():
         plt.ylabel('Predicted GPP', fontsize=14)
         plt.grid(True)
         plt.title('Test set\nR2: ' + str(r2_unnorm))
+        outf2 = join(outpng_dir,f'test_r2_{self.year_to_test}.png')
+        plt.savefig(outf2,dpi=600)
+        plt.close()
         # plt.show()
         plt.figure()
 
@@ -378,7 +390,10 @@ class Do_Train():
         plt.ylabel('Predicted GPP', fontsize=14)
         plt.grid(True)
         plt.title('Train set\nR2: ' + str(r2_unnorm_tr))
-        plt.show()
+        # plt.show()
+        outf3 = join(outpng_dir,f'train_r2_{self.year_to_test}.png')
+        plt.savefig(outf3,dpi=600)
+        plt.close()
 
 
 def main():

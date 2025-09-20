@@ -8,11 +8,13 @@ centimeter_factor = 1 / 2.54
 if 'Ubuntu' in os_version:
     # Dell
     this_root = '/home/yangli/HDD/GPP_ML/'
+    global_device = 'cuda'
     print('Platform: Ubuntu')
 elif 'Darwin' in os_version:
     # MacBook
     import matplotlib
     print('Platform: MacOS')
+    global_device = 'mps'
     # this_root = '/Volumes/HDD/GPP_ML/'
     this_root = '/Volumes/NVME4T/GPP_ML/'
     matplotlib.use('TkAgg')
