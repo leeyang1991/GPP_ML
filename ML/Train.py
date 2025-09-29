@@ -170,6 +170,8 @@ class Do_Train():
         # Test
         test_df = df[df['year'] == self.year_to_test]
         test_chips = test_df['tif_path'].tolist()
+        pprint(test_chips)
+        exit()
         test_chips = [tif_path.replace('[PROJECT_ROOT]/',this_root) for tif_path in test_chips]
         climate_test = test_df[climate_variable_list].astype(float).values.tolist()
         test_target = test_df['GPP'].tolist()

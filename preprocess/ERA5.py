@@ -66,7 +66,7 @@ class Download_from_GEE:
             values = img.reduceRegion(
                 reducer=ee.Reducer.mean(),
                 geometry=region,
-                scale=10000,  # ERA5 分辨率约 9km，10km 足够
+                scale=10000,  # ERA5 分辨率约 9km，10km
                 bestEffort=True
             )
             return ee.Feature(None, {

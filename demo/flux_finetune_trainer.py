@@ -54,7 +54,7 @@ from torcheval.metrics import R2Score
 from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from lightning.pytorch import Trainer
-from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, RichProgressBar
+from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, RichProgressBar,TQDMProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger
 from torchgeo.trainers import BaseTask
 
@@ -306,7 +306,7 @@ trainer = Trainer(
     # precision="16-mixed",
     accelerator=accelerator,
     callbacks=[
-        RichProgressBar(),
+        TQDMProgressBar(),
         checkpoint_callback,
         LearningRateMonitor(logging_interval="epoch"),
     ],
